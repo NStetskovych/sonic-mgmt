@@ -10,6 +10,12 @@
   when: sonic_hwsku in mellanox_hwskus
   tags: always
 
+- name: Set sonic_asic_type fact
+  set_fact:
+    sonic_asic_type: cavium
+  when: sonic_hwsku in cavium_hwskus
+  tags: always
+
 - name: update sonicadmin password
   include: passwd.yml
   tags: system
@@ -17,6 +23,14 @@
 # Setup apt repo
 - include: aptrepo.yml
   tags: repo
+
+# Dbus
+- name: Install dbus
+  become: true
+  apt: pkg=dbus
+       state=latest
+  when: sonic_hwsku == "AS7512"
+  tags: dbus
 
 # Syslog
 - name: Install Syslog daemon
@@ -82,6 +96,7 @@
 
 # Assign hostname
 - name: Assign hostname
+  become: true
   hostname: name={{ inventory_hostname }}
   tags: system
 
@@ -132,6 +147,7 @@
   changed_when: False
 
 - name: Add mgmt ip rule if it does not exist
+  become: true
   shell: /bin/ip rule add from {{ minigraph_mgmt_interface['addr'] }}/32 table default
   tags: network,unsafe
   when: ip_rules.stdout.find("from {{ minigraph_mgmt_interface['addr'] }} lookup default") == -1
@@ -147,12 +163,24 @@
   apt: pkg=docker-engine={{ version_docker_engine }}
        state=present
 
+- name: Setup docker Daemon Config File
+  become: true
+  template: src=etc/systemd/system/docker.conf.j2
+            dest=/etc/systemd/system/docker.service.d/docker.service.conf
+  register: configfile_result
+  when: sonic_hwsku == "AS7512"
+
+- name: Reload systemd
+  become: true
+  command: systemctl daemon-reload
+  when: configfile_result.changed and sonic_hwsku == "AS7512"
+
 # Ensure docker service started and enabled
 # Note: keep it before all dockers
 - name: Ensure docker service started and enabled
   become: true
   service: name=docker
-           state=started
+           state=restarted
            enabled=yes
 
 ## Redis database
