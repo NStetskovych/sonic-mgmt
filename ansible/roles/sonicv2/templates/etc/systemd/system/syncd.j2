@@ -7,11 +7,16 @@ After=database.service
 User=root
 {% if sonic_hwsku == 'ACS-MSN2700' %}
 ExecStartPre=/etc/init.d/sxdkernel start
+{% elif sonic_hwsku == 'AS7512' %}
+ExecStartPre=-/sbin/modprobe -r -q xp80-Pcie-Endpoint
+ExecStartPre=/sbin/modprobe xp80-Pcie-Endpoint
 {% endif %}
 ExecStart=/usr/bin/docker start -a syncd
 ExecStop=/usr/bin/docker stop syncd
 {% if sonic_hwsku == 'ACS-MSN2700' %}
 ExecStopPost=/etc/init.d/sxdkernel stop
+{% elif sonic_hwsku == 'AS7512' %}
+ExecStopPost=/sbin/modprobe -r xp80-Pcie-Endpoint
 {% endif %}
 Restart=always
 

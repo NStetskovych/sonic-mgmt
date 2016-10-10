@@ -1,7 +1,8 @@
 [Unit]
 Description=BGP container
 Requires=database.service
-After=database.service
+Wants=syncd.service
+After=database.service syncd.service
 
 [Service]
 User={{ sonicadmin_user }}
